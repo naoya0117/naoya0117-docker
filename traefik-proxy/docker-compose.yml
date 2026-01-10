@@ -1,0 +1,96 @@
+services:
+  public-traefik:
+    image: traefik:latest
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      # public用だけ見る（ラベルキーを分離）
+      - '--providers.docker.constraints=Label(`traefik.public`,`true`)'
+      - '--providers.docker.network=public-traefik'
+
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+
+      # HTTP->HTTPS
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+
+      # ACME(DNS-01/Cloudflare)
+      - "--certificatesresolvers.le.acme.email=${LE_EMAIL}"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme-public.json"
+      - "--certificatesresolvers.le.acme.dnschallenge=true"
+      - "--certificatesresolvers.le.acme.dnschallenge.provider=cloudflare"
+
+      - "--accesslog=true"
+      - "--accesslog.fields.defaultmode=keep"
+
+    environment:
+      - "CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "letsencrypt:/letsencrypt"
+    labels:
+      - "traefik.enable=true"
+      # このTraefik自身も public として拾われる
+      - "traefik.public=true"
+
+      # Cloudflare経由のみ許可（接続元がCloudflareレンジ）
+      - "traefik.http.middlewares.cf-edge-only.ipallowlist.sourcerange=${CF_IPS}"
+      - "traefik.http.middlewares.access-allow-chain.chain.middlewares=cf-edge-only"
+    networks:
+      - "public-traefik"
+
+  private-traefik:
+    image: traefik:latest
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      # private用だけ見る（ラベルキーを分離）
+      - '--providers.docker.constraints=Label(`traefik.private`,`true`)'
+      - '--providers.docker.network=private-traefik'
+
+      # HTTP->HTTPS
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+
+      # ACME(DNS-01/Cloudflare)
+      - "--certificatesresolvers.le.acme.email=${LE_EMAIL}"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme-private.json"
+      - "--certificatesresolvers.le.acme.dnschallenge=true"
+      - "--certificatesresolvers.le.acme.dnschallenge.provider=cloudflare"
+
+      - "--accesslog=true"
+      - "--accesslog.fields.defaultmode=keep"
+
+    environment:
+      - "CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "letsencrypt:/letsencrypt"
+    labels:
+      - "traefik.enable=true"
+      # このTraefik自身も private として拾われる
+      - "traefik.private=true"
+
+      # VPNサーバからのアクセスを許可するため
+      - "traefik.http.middlewares.vpn-client-only.ipallowlist.sourcerange=${VPN_SERVER_IP}"
+      - "traefik.http.middlewares.access-allow-chain.chain.middlewares=vpn-client-only"
+    networks:
+      private-traefik:
+        ipv4_address: ${PRIVATE_TRAEFIK_IPV4}
+        ipv6_address: ${PRIVATE_TRAEFIK_IPV6}
+
+volumes:
+  letsencrypt:
+
+networks:
+  public-traefik:
+    external: true
+  private-traefik:
+    external: true

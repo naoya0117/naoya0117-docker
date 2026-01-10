@@ -1,0 +1,13 @@
+/wireguard/*
+
+!/wireguard/templates/
+!/wireguard/templates/**
+
+/pihole/etc-pihole/*
+
+/unbound/*
+
+# 要暗号化
+!/unbound/custom.conf.d/
+!/unbound/custom.conf.d/*
+

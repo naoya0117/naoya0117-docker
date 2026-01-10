@@ -1,0 +1,45 @@
+services:
+    vault:
+      image: hashicorp/vault:latest
+      volumes:
+        - ./vault/config:/vault/config
+        - ./vault/policies:/vault/policies
+        - data:/vault/data
+      environment:
+        - VAULT_ADDR=http://0.0.0.0:8200
+        - VAULT_API_ADDR=http://0.0.0.0:8200
+        - VAULT_ADDRESS=http://0.0.0.0:8200
+      cap_add:
+        - IPC_LOCK
+      command: sh -c "chown -R 100:1000 /vault/data && vault server -config=/vault/config/config.hcl"
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.services.hashicorp-vault.loadbalancer.server.port=8200"
+
+        # cloudflare経由のルーティング
+        - "traefik.public=true"
+        - "traefik.http.routers.hashicorp-vault-public.rule=Host(`${APP_HOST}`)"
+        - "traefik.http.routers.hashicorp-vault-public.entrypoints=websecure"
+        - "traefik.http.routers.hashicorp-vault-public.tls=true"
+        - "traefik.http.routers.hashicorp-vault-public.tls.certresolver=le"
+        - "traefik.http.routers.hashicorp-vault-public.middlewares=access-allow-chain@docker"
+
+        # vpn経由のルーティング
+        - "traefik.private=true"
+        - "traefik.http.routers.hashicorp-vault-private.rule=Host(`${APP_HOST}`)"
+        - "traefik.http.routers.hashicorp-vault-private.entrypoints=websecure"
+        - "traefik.http.routers.hashicorp-vault-private.tls=true"
+        - "traefik.http.routers.hashicorp-vault-private.tls.certresolver=le"
+        - "traefik.http.routers.hashicorp-vault-private.middlewares=access-allow-chain@docker"
+      networks:
+        - private-traefik
+        - public-traefik
+
+volumes:
+  data:
+networks:
+  private-traefik:
+    external: true
+  public-traefik:
+    external: true
+

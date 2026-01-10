@@ -1,0 +1,4 @@
+.env filter=git-crypt diff=git-crypt
+/wireguard/unbound/custom.conf.d/* filter=git-crypt diff=git-crypt
+/openxkpi/openxpki-config/config.d/system/* filter=git-crypt diff=git-crypt
+

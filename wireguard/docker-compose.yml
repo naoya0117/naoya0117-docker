@@ -1,0 +1,78 @@
+services:
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    environment:
+      TZ: 'Asia/Tokyo'
+      DNSMASQ_LISTENING: "all"
+      FTLCONF_dns_upstreams: "1.1.1.1;1.0.0.1"
+    cap_add:
+      - SYS_NICE
+    volumes:
+      - "./pihole/etc-pihole:/etc/pihole"
+      - "./pihole/etc-dnsmasq.d:/etc/dnsmasq.d"
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.pihole-svc.loadbalancer.server.port=80"
+
+      # cloudflare経由のルーティング
+      - "traefik.public=true"
+      - "traefik.http.routers.pihole-public.rule=Host(`${APP_HOST}`)"
+      - "traefik.http.routers.pihole-public.entrypoints=websecure"
+      - "traefik.http.routers.pihole-public.tls=true"
+      - "traefik.http.routers.pihole-public.tls.certresolver=le"
+      - "traefik.http.routers.pihole-public.middlewares=access-allow-chain@docker"
+
+      # vpn経由のルーティング
+      - "traefik.private=true"
+      - "traefik.http.routers.pihole-private.rule=Host(`${APP_HOST}`)"
+      - "traefik.http.routers.pihole-private.entrypoints=websecure"
+      - "traefik.http.routers.pihole-private.tls=true"
+      - "traefik.http.routers.pihole-private.tls.certresolver=le"
+      - "traefik.http.routers.pihole-private.middlewares=access-allow-chain@docker"
+
+    networks:
+      dns-network:
+        ipv4_address: ${DNS_IP}
+      public-traefik:
+      private-traefik:
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:latest
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      TZ: "Asia/Tokyo"
+      SERVERURL: ${VPN_HOST}
+      SERVERPORT: 51820
+      PEERS: ${VPN_PEERS}
+      PEERDNS: ${DNS_IP}
+      INTERNAL_SUBNET: ${INTERNAL_SUBNET} 
+      ALLOWEDIPS: ${DNS_IP}/32,${PRIVATE_TRAEFIK_IP}/32
+    volumes:
+      - ./wireguard:/config
+      - /lib/modules:/lib/modules
+    ports:
+      - 0.0.0.0:51820:51820/udp
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+    networks:
+      dns-network:
+      private-traefik:
+        ipv4_address: ${PRIVATE_TRAEFIK_NETWORK_VPN_SERVER_IP}
+
+    depends_on:
+      - "pihole"
+networks:
+  public-traefik:
+    external: true
+  private-traefik:
+    external: true
+  dns-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DNS_SUBNET}
+          gateway: ${DNS_GATEWAY}
