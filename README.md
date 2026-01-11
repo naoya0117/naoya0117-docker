@@ -331,6 +331,13 @@ docker logs private-traefik
 - Pi-hole統合（広告ブロック＋プライベートDNS）
 - Private Traefikへのルーティング
 
+> [!NOTE]
+> Piholeにアクセスした後，VPN経由で各サービスにアクセスするための初回設定として，内部DNSを設定する必要があります．
+> 以下のレコードを追加してください
+> `A レコード <YOUR DOMAIN> <YOUR TRAEFIK IPv4 Address>` (ex. example.com 10.0.0.2)
+> `AAAA レコード <YOUR DOMAIN> <YOUR TRAEFIK IPv6 Address>` (ipv4, ipv6両方設定しないとvpn経由でもアクセスがcloudflareへ吸い込まれます)
+> `CNAME レコード <YOUR SERVICE DOMAIN> <YOUR DOMAIN>` (pihole.example.com example.com)
+
 **管理:**
 
 ```bash
