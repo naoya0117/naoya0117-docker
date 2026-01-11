@@ -86,22 +86,7 @@ IPv6とカスタムネットワーク設定を有効にするため、Docker Dae
 {
   "ipv6": true,
   "fixed-cidr-v6": "fd00::/80",
-  "experimental": true,
-  "ip6tables": true,
-  "default-address-pools": [
-    {
-      "base": "172.17.0.0/16",
-      "size": 24
-    },
-    {
-      "base": "172.18.0.0/16",
-      "size": 24
-    },
-    {
-      "base": "192.168.0.0/16",
-      "size": 24
-    }
-  ]
+  "ip6tables": true
 }
 ```
 
@@ -109,11 +94,7 @@ IPv6とカスタムネットワーク設定を有効にするため、Docker Dae
 
 - `ipv6`: IPv6サポートを有効化
 - `fixed-cidr-v6`: デフォルトのIPv6サブネット（ULA範囲）
-- `experimental`: 実験的機能を有効化（一部の高度なネットワーク機能に必要）
 - `ip6tables`: IPv6のiptablesサポート
-- `default-address-pools`: カスタムIPv4アドレスプールの定義
-  - 複数のネットワークを作成する際のIPアドレス範囲
-  - `size`は各ネットワークのサブネットサイズ（/24 = 254ホスト）
 
 **設定を適用:**
 
